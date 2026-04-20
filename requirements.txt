@@ -1,0 +1,27 @@
+# ── Web server ───────────────────────────────────────────────────────────────
+flask>=2.3
+werkzeug>=2.3
+python-dotenv>=1.0
+
+# ── PDF support ───────────────────────────────────────────────────────────────
+pdf2image>=1.16
+
+# ── Image processing ─────────────────────────────────────────────────────────
+opencv-python>=4.8
+Pillow>=10.0
+numpy>=1.24
+scipy>=1.11
+
+# ── Deep Learning (Phase 2 core) ─────────────────────────────────────────────
+torch>=2.0
+torchvision>=0.15
+
+# ── TrOCR (handwriting OCR) ──────────────────────────────────────────────────
+transformers>=4.35
+accelerate>=0.24          # faster inference, required by some transformers ops
+
+# ── Semantic similarity ───────────────────────────────────────────────────────
+sentence-transformers>=2.6
+
+# ── Classical ML baseline ────────────────────────────────────────────────────
+scikit-learn>=1.3

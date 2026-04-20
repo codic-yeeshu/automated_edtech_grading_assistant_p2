@@ -1,0 +1,1044 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DL Grading Assistant — Phase 2</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #f4f2ee;
+        --surface: #fff;
+        --border: #dedad4;
+        --text: #1a1916;
+        --muted: #7a776f;
+        --accent: #2d6a4f;
+        --accent-lt: #e8f4f0;
+        --accent-dark: #1b4332;
+        --warn: #c0392b;
+        --warn-lt: #fdf0ef;
+        --blue: #2563eb;
+        --blue-lt: #eff6ff;
+        --purple: #6d28d9;
+        --purple-lt: #f5f3ff;
+        --mono: "DM Mono", monospace;
+        --sans: "DM Sans", sans-serif;
+      }
+      body {
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        padding: 40px 20px;
+      }
+      header {
+        max-width: 820px;
+        margin: 0 auto 36px;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 20px;
+      }
+      header h1 {
+        font-size: 22px;
+        font-weight: 500;
+        letter-spacing: -0.3px;
+      }
+      header p {
+        font-size: 14px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 8px;
+        vertical-align: middle;
+      }
+      .badge-green {
+        background: var(--accent-lt);
+        color: var(--accent);
+      }
+      .badge-purple {
+        background: var(--purple-lt);
+        color: var(--purple);
+      }
+      .container {
+        max-width: 820px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 24px;
+      }
+      .card-title {
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--muted);
+        margin-bottom: 16px;
+      }
+      label {
+        font-size: 13px;
+        font-weight: 500;
+        display: block;
+        margin-bottom: 6px;
+      }
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 9px 12px;
+        font-family: var(--sans);
+        font-size: 14px;
+        background: var(--bg);
+        color: var(--text);
+        transition: border-color 0.15s;
+      }
+      input[type="text"]:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--accent);
+        background: #fff;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+      /* ── Mode selector ── */
+      .mode-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+      .mode-option {
+        flex: 1;
+        position: relative;
+      }
+      .mode-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+      }
+      .mode-label {
+        display: block;
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.15s;
+        font-size: 13px;
+        user-select: none;
+      }
+      .mode-option input:checked + .mode-label {
+        border-color: var(--accent);
+        background: var(--accent-lt);
+        color: var(--accent-dark);
+        font-weight: 500;
+      }
+      .mode-desc {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+        display: block;
+      }
+      /* ── Upload zone ── */
+      .drop-zone {
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        padding: 36px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+      }
+      .drop-zone:hover,
+      .drop-zone.drag-over {
+        border-color: var(--accent);
+        background: var(--accent-lt);
+      }
+      .drop-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+      }
+      .drop-icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
+      .drop-text {
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .drop-text strong {
+        color: var(--text);
+      }
+      #preview-wrap {
+        margin-top: 14px;
+        display: none;
+      }
+      #preview-wrap img {
+        max-height: 160px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+      }
+      /* ── Answer blocks ── */
+      .answer-block {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 10px;
+        position: relative;
+      }
+      .answer-block .q-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .remove-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1;
+        padding: 2px 6px;
+        border-radius: 4px;
+        transition: color 0.15s;
+      }
+      .remove-btn:hover {
+        color: var(--warn);
+      }
+      /* ── Buttons ── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 20px;
+        border-radius: 7px;
+        font-family: var(--sans);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: all 0.15s;
+      }
+      .btn-primary {
+        background: var(--accent-dark);
+        color: #fff;
+      }
+      .btn-primary:hover {
+        background: #0d2b20;
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .btn-ghost {
+        background: none;
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
+      .btn-ghost:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .btn-ablation {
+        background: var(--purple-lt);
+        border: 1px solid #c4b5fd;
+        color: var(--purple);
+      }
+      .btn-ablation:hover {
+        background: #ede9fe;
+      }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-top: 16px;
+      }
+      /* ── Spinner ── */
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: none;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      /* ── Score display ── */
+      .score-hero {
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+      .score-num {
+        font-size: 42px;
+        font-weight: 600;
+        font-family: var(--mono);
+        line-height: 1;
+      }
+      .score-den {
+        font-size: 18px;
+        color: var(--muted);
+        font-family: var(--mono);
+        margin-bottom: 6px;
+      }
+      .grade-pill {
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .grade-Excellent {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .grade-Good {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      .grade-Average {
+        background: #fef9c3;
+        color: #854d0e;
+      }
+      .grade-Below.Average,
+      .grade-Below-Average {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .grade-Poor {
+        background: #f3f4f6;
+        color: #374151;
+      }
+      .progress-bar {
+        height: 6px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 12px;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.6s ease;
+        background: var(--accent);
+      }
+      /* ── Mode chip ── */
+      .mode-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 3px 10px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+      }
+      .chip-hybrid {
+        background: var(--accent-lt);
+        color: var(--accent);
+      }
+      .chip-dl {
+        background: var(--blue-lt);
+        color: var(--blue);
+      }
+      .chip-ml {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      /* ── Keyword pills ── */
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .pill {
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-family: var(--mono);
+      }
+      .pill-green {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .pill-red {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      /* ── Question cards ── */
+      .q-card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 10px;
+      }
+      .q-card-header {
+        padding: 12px 16px;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+      }
+      .q-card-header:hover {
+        background: #ece9e4;
+      }
+      .q-num {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+      }
+      .q-score {
+        font-size: 14px;
+        font-weight: 600;
+        font-family: var(--mono);
+      }
+      .q-body {
+        padding: 16px;
+        border-top: 1px solid var(--border);
+        display: none;
+      }
+      .q-body.open {
+        display: block;
+      }
+      /* ── Ablation table ── */
+      .ablation-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 12px;
+      }
+      .ablation-table th {
+        padding: 8px 14px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+        border-bottom: 2px solid var(--border);
+      }
+      .ablation-table td {
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .ablation-table tr:last-child td {
+        border-bottom: none;
+      }
+      .best-row td {
+        background: var(--accent-lt);
+        font-weight: 500;
+      }
+      /* ── OCR blocks ── */
+      .ocr-block {
+        background: var(--bg);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text);
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin-bottom: 6px;
+        border: 1px solid var(--border);
+      }
+      /* ── Error ── */
+      .error-box {
+        background: var(--warn-lt);
+        border: 1px solid #f5c6c2;
+        border-radius: 8px;
+        padding: 14px 16px;
+        color: var(--warn);
+        font-size: 14px;
+      }
+      /* ── Section row ── */
+      .section-title {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 600px) {
+        .row-2 {
+          grid-template-columns: 1fr;
+        }
+        .mode-group {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>
+        DL Grading Assistant
+        <span class="badge badge-green">Phase 2</span>
+        <span class="badge badge-purple">Deep Learning</span>
+      </h1>
+      <p>
+        TrOCR handwriting recognition · Cross-encoder semantic scoring · BiLSTM
+        quality assessment
+      </p>
+    </header>
+
+    <div class="container">
+      <!-- ── Upload + Config ──────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Answer Sheet</div>
+
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="sheetInput" accept=".png,.jpg,.jpeg,.pdf" />
+          <div class="drop-icon">📄</div>
+          <div class="drop-text">
+            <strong>Click to upload</strong> or drag & drop<br />PNG · JPG · PDF
+            (multi-page)
+          </div>
+        </div>
+
+        <div id="preview-wrap">
+          <img id="imgPreview" src="" alt="Preview" />
+          <div
+            style="font-size: 12px; color: var(--muted); margin-top: 6px"
+            id="fileLabel"
+          ></div>
+        </div>
+      </div>
+
+      <!-- ── Grading Mode ──────────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Grading Mode</div>
+        <div class="mode-group">
+          <label class="mode-option">
+            <input type="radio" name="grading_mode" value="ml" />
+            <span class="mode-label">
+              Model A — ML
+              <span class="mode-desc">TF-IDF + Jaccard</span>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="grading_mode" value="dl" />
+            <span class="mode-label">
+              Model B — DL
+              <span class="mode-desc">Cross-encoder + SBERT</span>
+            </span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="grading_mode" value="hybrid" checked />
+            <span class="mode-label">
+              Model C — Hybrid ✦
+              <span class="mode-desc">Cross-enc + BiLSTM + TF-IDF</span>
+            </span>
+          </label>
+        </div>
+        <div
+          style="font-size: 12px; color: var(--muted); margin-top: 8px"
+          id="modeDesc"
+        >
+          <strong>Hybrid (recommended):</strong> Cross-encoder captures deep
+          semantics, BiLSTM assesses structural quality, TF-IDF ensures factual
+          keyword coverage.
+        </div>
+      </div>
+
+      <!-- ── Teacher Answers ───────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-title">Reference Answers</div>
+        <div id="answerBlocks">
+          <div class="answer-block" data-idx="1">
+            <div class="q-label">Question 1</div>
+            <textarea
+              name="teacher_answer_1"
+              placeholder="Enter the model answer for Question 1…"
+              rows="3"
+            ></textarea>
+          </div>
+        </div>
+        <button
+          class="btn btn-ghost"
+          id="addAnswerBtn"
+          type="button"
+          style="margin-top: 6px; font-size: 13px"
+        >
+          + Add Question
+        </button>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="gradeBtn" type="button">
+            <span id="gradeSpinner" class="spinner"></span>
+            Grade Answer Sheet
+          </button>
+          <button
+            class="btn btn-ablation"
+            id="ablationBtn"
+            type="button"
+            style="display: none"
+          >
+            Compare All Models
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Error display ─────────────────────────────────────────────────────── -->
+      <div class="error-box" id="errorBox" style="display: none"></div>
+
+      <!-- ── Results ───────────────────────────────────────────────────────────── -->
+      <div id="resultsSection" style="display: none">
+        <!-- Score summary -->
+        <div class="card" id="summaryCard">
+          <div class="card-title">Result</div>
+          <div id="modeChip" class="mode-chip chip-hybrid"></div>
+          <div class="score-hero">
+            <div class="score-num" id="scoreNum">—</div>
+            <div class="score-den" id="scoreDen">/10</div>
+            <div class="grade-pill" id="gradePill">—</div>
+          </div>
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              id="progressFill"
+              style="width: 0%"
+            ></div>
+          </div>
+          <div
+            style="font-size: 12px; color: var(--muted); margin-top: 8px"
+            id="simText"
+          ></div>
+        </div>
+
+        <!-- Per-question breakdown (multi mode) -->
+        <div class="card" id="perQCard" style="display: none">
+          <div class="card-title">Per-Question Breakdown</div>
+          <div id="perQList"></div>
+        </div>
+
+        <!-- Single-mode keywords -->
+        <div class="card" id="keywordCard" style="display: none">
+          <div class="row-2">
+            <div>
+              <div class="section-title">Matched Keywords</div>
+              <div class="pill-row" id="matchedPills"></div>
+            </div>
+            <div>
+              <div class="section-title">Missed Keywords</div>
+              <div class="pill-row" id="missedPills"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Annotated images -->
+        <div class="card">
+          <div class="card-title">Annotated Sheet</div>
+          <div id="annotatedImages"></div>
+        </div>
+
+        <!-- Extracted OCR text -->
+        <div class="card">
+          <div class="card-title">Extracted Text (TrOCR)</div>
+          <div id="ocrBlocks"></div>
+        </div>
+      </div>
+
+      <!-- ── Ablation Results ──────────────────────────────────────────────────── -->
+      <div class="card" id="ablationCard" style="display: none">
+        <div class="card-title">Ablation Study — Model Comparison</div>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 12px">
+          Side-by-side performance of all three grading models on the same
+          student answer.
+        </p>
+        <table class="ablation-table" id="ablationTable">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Architecture</th>
+              <th>Similarity</th>
+              <th>Marks</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody id="ablationBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- /container -->
+
+    <script>
+      // ── Helpers ──────────────────────────────────────────────────────────────────
+      const $ = (id) => document.getElementById(id);
+      const qs = (sel) => document.querySelector(sel);
+
+      // ── File upload & preview ────────────────────────────────────────────────────
+      let uploadedFile = null;
+
+      $("sheetInput").addEventListener("change", (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        uploadedFile = f;
+        $("fileLabel").textContent =
+          f.name + "  (" + (f.size / 1024).toFixed(1) + " KB)";
+        if (f.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            $("imgPreview").src = ev.target.result;
+          };
+          reader.readAsDataURL(f);
+          $("preview-wrap").style.display = "";
+        } else {
+          $("imgPreview").src = "";
+          $("preview-wrap").style.display = "none";
+        }
+        $("ablationBtn").style.display = "inline-flex";
+      });
+
+      const dropZone = $("dropZone");
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+      dropZone.addEventListener("dragleave", () =>
+        dropZone.classList.remove("drag-over"),
+      );
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        const f = e.dataTransfer.files[0];
+        if (f) {
+          $("sheetInput").files = e.dataTransfer.files;
+          $("sheetInput").dispatchEvent(new Event("change"));
+        }
+      });
+
+      // ── Add/remove answer blocks ─────────────────────────────────────────────────
+      let answerCount = 1;
+      $("addAnswerBtn").addEventListener("click", () => {
+        answerCount++;
+        const div = document.createElement("div");
+        div.className = "answer-block";
+        div.dataset.idx = answerCount;
+        div.innerHTML = `
+    <div class="q-label">Question ${answerCount}</div>
+    <button class="remove-btn" type="button" title="Remove">×</button>
+    <textarea name="teacher_answer_${answerCount}" placeholder="Enter the model answer for Question ${answerCount}…" rows="3"></textarea>`;
+        $("answerBlocks").appendChild(div);
+        div.querySelector(".remove-btn").addEventListener("click", () => {
+          div.remove();
+          renumberBlocks();
+        });
+      });
+
+      function renumberBlocks() {
+        const blocks = $("answerBlocks").querySelectorAll(".answer-block");
+        blocks.forEach((b, i) => {
+          const n = i + 1;
+          b.dataset.idx = n;
+          b.querySelector(".q-label").textContent = `Question ${n}`;
+          const ta = b.querySelector("textarea");
+          ta.name = `teacher_answer_${n}`;
+          ta.placeholder = `Enter the model answer for Question ${n}…`;
+        });
+        answerCount = blocks.length;
+      }
+
+      // ── Mode description ─────────────────────────────────────────────────────────
+      const modeDescs = {
+        ml: "<strong>ML Baseline:</strong> TF-IDF bigram vectorization + Jaccard keyword similarity. Fast, interpretable, no neural networks.",
+        dl: "<strong>DL Mode:</strong> RoBERTa cross-encoder (full cross-attention on student+teacher pair) + SBERT bi-encoder. Most accurate semantic understanding.",
+        hybrid:
+          "<strong>Hybrid (recommended):</strong> Cross-encoder captures deep semantics, BiLSTM assesses structural quality, TF-IDF ensures factual keyword coverage.",
+      };
+      document.querySelectorAll("input[name=grading_mode]").forEach((r) => {
+        r.addEventListener("change", () => {
+          $("modeDesc").innerHTML = modeDescs[r.value] || "";
+        });
+      });
+
+      // ── Grade button ──────────────────────────────────────────────────────────────
+      $("gradeBtn").addEventListener("click", async () => {
+        if (!uploadedFile) {
+          showError("Please upload an answer sheet first.");
+          return;
+        }
+
+        const answers = [];
+        $("answerBlocks")
+          .querySelectorAll("textarea")
+          .forEach((ta) => {
+            if (ta.value.trim()) answers.push(ta.value.trim());
+          });
+        if (!answers.length) {
+          showError("Provide at least one reference answer.");
+          return;
+        }
+
+        const mode = qs("input[name=grading_mode]:checked")?.value || "hybrid";
+
+        setLoading(true);
+        hideError();
+        $("resultsSection").style.display = "none";
+        $("ablationCard").style.display = "none";
+
+        const fd = new FormData();
+        fd.append("sheet", uploadedFile);
+        answers.forEach((a, i) => fd.append(`teacher_answer_${i + 1}`, a));
+        fd.append("grading_mode", mode);
+
+        try {
+          const res = await fetch("/grade", { method: "POST", body: fd });
+          const data = await res.json();
+          if (data.error) {
+            showError(data.error);
+            return;
+          }
+          renderResults(data);
+        } catch (e) {
+          showError("Server error: " + e.message);
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      // ── Ablation button ───────────────────────────────────────────────────────────
+      $("ablationBtn").addEventListener("click", async () => {
+        const answers = [];
+        $("answerBlocks")
+          .querySelectorAll("textarea")
+          .forEach((ta) => {
+            if (ta.value.trim()) answers.push(ta.value.trim());
+          });
+        if (!answers.length) {
+          showError("Provide a reference answer first.");
+          return;
+        }
+
+        const ocrText = $("ocrBlocks").innerText;
+        if (!ocrText.trim()) {
+          showError("Grade the sheet first to get extracted text.");
+          return;
+        }
+
+        const payload = { student_text: ocrText, teacher_text: answers[0] };
+        try {
+          const res = await fetch("/ablation", {
+            method: "POST",
+            body: JSON.stringify(payload),
+            headers: { "Content-Type": "application/json" },
+          });
+          const data = await res.json();
+          if (data.error) {
+            showError(data.error);
+            return;
+          }
+          renderAblation(data.ablation);
+        } catch (e) {
+          showError("Ablation failed: " + e.message);
+        }
+      });
+
+      // ── Render results ────────────────────────────────────────────────────────────
+      function renderResults(data) {
+        $("resultsSection").style.display = "";
+
+        const modeLabel = {
+          ml: "Model A — ML",
+          dl: "Model B — DL",
+          hybrid: "Model C — Hybrid",
+        };
+        const modeClass = {
+          ml: "chip-ml",
+          dl: "chip-dl",
+          hybrid: "chip-hybrid",
+        };
+        const gm = data.grading_mode || "hybrid";
+        const chip = $("modeChip");
+        chip.textContent = modeLabel[gm] || gm;
+        chip.className = "mode-chip " + (modeClass[gm] || "chip-hybrid");
+
+        if (data.mode === "multi") {
+          $("scoreNum").textContent = data.combined_marks;
+          $("scoreDen").textContent = "/" + data.combined_total;
+          setGrade(data.combined_grade);
+          const pct = (data.combined_marks / data.combined_total) * 100;
+          $("progressFill").style.width = pct + "%";
+          $("simText").textContent = "";
+          $("keywordCard").style.display = "none";
+
+          $("perQCard").style.display = "";
+          const list = $("perQList");
+          list.innerHTML = "";
+          data.per_question.forEach((q) => {
+            const pct2 = (q.marks / q.total) * 100;
+            const card = document.createElement("div");
+            card.className = "q-card";
+            card.innerHTML = `
+        <div class="q-card-header" onclick="this.nextElementSibling.classList.toggle('open')">
+          <span class="q-num">Q${q.question}</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="q-score">${q.marks}/${q.total}</span>
+            <span class="grade-pill grade-${q.grade.replace(" ", "-")}">${q.grade}</span>
+          </div>
+        </div>
+        <div class="q-body">
+          <div class="progress-bar" style="margin-bottom:12px"><div class="progress-fill" style="width:${pct2}%"></div></div>
+          <div class="row-2">
+            <div>
+              <div class="section-title">Matched</div>
+              <div class="pill-row">${q.matched.map((k) => `<span class="pill pill-green">${k}</span>`).join("") || '<span style="font-size:12px;color:var(--muted)">none</span>'}</div>
+            </div>
+            <div>
+              <div class="section-title">Missed</div>
+              <div class="pill-row">${q.missed.map((k) => `<span class="pill pill-red">${k}</span>`).join("") || '<span style="font-size:12px;color:var(--muted)">none</span>'}</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;font-size:12px;color:var(--muted)">Similarity: ${(q.similarity * 100).toFixed(1)}%</div>
+        </div>`;
+            list.appendChild(card);
+          });
+        } else {
+          $("scoreNum").textContent = data.marks;
+          $("scoreDen").textContent = "/" + data.total;
+          setGrade(data.grade);
+          const pct = (data.marks / data.total) * 100;
+          $("progressFill").style.width = pct + "%";
+          $("simText").textContent =
+            "Similarity score: " + (data.similarity * 100).toFixed(1) + "%";
+          $("perQCard").style.display = "none";
+          $("keywordCard").style.display = "";
+          $("matchedPills").innerHTML =
+            data.matched
+              .map((k) => `<span class="pill pill-green">${k}</span>`)
+              .join("") ||
+            '<span style="font-size:12px;color:var(--muted)">—</span>';
+          $("missedPills").innerHTML =
+            data.missed
+              .map((k) => `<span class="pill pill-red">${k}</span>`)
+              .join("") ||
+            '<span style="font-size:12px;color:var(--muted)">—</span>';
+        }
+
+        // Annotated images
+        const imgDiv = $("annotatedImages");
+        imgDiv.innerHTML = "";
+        (data.images || []).forEach((b64, i) => {
+          const img = document.createElement("img");
+          img.src = "data:image/png;base64," + b64;
+          img.style.cssText =
+            "max-width:100%;border-radius:6px;border:1px solid var(--border);margin-bottom:8px";
+          img.alt = "Annotated sheet page " + (i + 1);
+          imgDiv.appendChild(img);
+        });
+
+        // OCR blocks
+        const ocrDiv = $("ocrBlocks");
+        ocrDiv.innerHTML = "";
+        (data.blocks || []).forEach((t, i) => {
+          const d = document.createElement("div");
+          d.className = "ocr-block";
+          d.textContent = `[Block ${i + 1}]\n${t || "(no text detected)"}`;
+          ocrDiv.appendChild(d);
+        });
+      }
+
+      function setGrade(grade) {
+        const pill = $("gradePill");
+        pill.textContent = grade;
+        pill.className = "grade-pill grade-" + grade.replace(" ", "-");
+      }
+
+      // ── Render ablation table ─────────────────────────────────────────────────────
+      function renderAblation(data) {
+        $("ablationCard").style.display = "";
+        const archLabels = {
+          ml: "TF-IDF bigrams + Jaccard keyword",
+          dl: "RoBERTa cross-encoder + SBERT bi-encoder",
+          hybrid: "Cross-encoder + BiLSTM + TF-IDF ensemble",
+        };
+        const modeLabels = {
+          ml: "Model A — ML",
+          dl: "Model B — DL",
+          hybrid: "Model C — Hybrid",
+        };
+
+        const maxMarks = Math.max(...Object.values(data).map((d) => d.marks));
+        const body = $("ablationBody");
+        body.innerHTML = "";
+
+        Object.entries(data).forEach(([mode, d]) => {
+          const tr = document.createElement("tr");
+          if (d.marks === maxMarks) tr.className = "best-row";
+          tr.innerHTML = `
+      <td><strong>${modeLabels[mode] || mode}</strong></td>
+      <td style="color:var(--muted);font-size:12px">${archLabels[mode] || "—"}</td>
+      <td>${(d.similarity * 100).toFixed(1)}%</td>
+      <td>${d.marks}/10</td>
+      <td><span class="grade-pill grade-${d.grade.replace(" ", "-")}">${d.grade}</span></td>`;
+          body.appendChild(tr);
+        });
+      }
+
+      // ── UI utils ──────────────────────────────────────────────────────────────────
+      function setLoading(v) {
+        $("gradeBtn").disabled = v;
+        $("gradeSpinner").style.display = v ? "block" : "none";
+      }
+      function showError(msg) {
+        $("errorBox").textContent = msg;
+        $("errorBox").style.display = "";
+      }
+      function hideError() {
+        $("errorBox").style.display = "none";
+      }
+    </script>
+  </body>
+</html>
