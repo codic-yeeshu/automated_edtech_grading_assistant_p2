@@ -17,8 +17,9 @@ from werkzeug.utils import secure_filename
 from pdf2image import convert_from_path
 from dotenv import load_dotenv
 
-# Ensure engine/ is importable when running from any working directory
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Ensure the project root (parent of engine/) is on sys.path so that
+# `from engine.X import …` works regardless of the current working directory.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 load_dotenv()
 
@@ -98,7 +99,10 @@ def grade():
         mode = GradingMode.HYBRID
 
     # ── Save uploaded file ───────────────────────────────────────────────────
-    filename  = secure_filename(sheet_file.filename)
+    # Prefix with a millisecond timestamp so repeat uploads of the same name
+    # never overwrite a file we (or another in-flight request) are still reading.
+    import time
+    filename  = f"{int(time.time() * 1000)}_{secure_filename(sheet_file.filename)}"
     save_path = os.path.join(_upload_dir, filename)
     sheet_file.save(save_path)
 

@@ -182,6 +182,37 @@
         border-color: var(--accent);
         background: var(--accent-lt);
       }
+      .drop-zone.has-file {
+        border-style: solid;
+        border-color: var(--accent);
+        background: var(--accent-lt);
+      }
+      .drop-zone.has-file .drop-icon {
+        color: var(--accent);
+      }
+      .drop-zone.has-file .drop-text strong {
+        color: var(--accent-dark);
+      }
+      .file-meta {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--accent-dark);
+        margin-top: 4px;
+      }
+      .change-file-btn {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        background: none;
+        border: 1px solid var(--border);
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .change-file-btn:hover {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
       .drop-zone input[type="file"] {
         position: absolute;
         inset: 0;
@@ -542,11 +573,12 @@
 
         <div class="drop-zone" id="dropZone">
           <input type="file" id="sheetInput" accept=".png,.jpg,.jpeg,.pdf" />
-          <div class="drop-icon">📄</div>
-          <div class="drop-text">
+          <div class="drop-icon" id="dropIcon">📄</div>
+          <div class="drop-text" id="dropText">
             <strong>Click to upload</strong> or drag & drop<br />PNG · JPG · PDF
             (multi-page)
           </div>
+          <div class="file-meta" id="fileMeta" style="display: none"></div>
         </div>
 
         <div id="preview-wrap">
@@ -555,6 +587,9 @@
             style="font-size: 12px; color: var(--muted); margin-top: 6px"
             id="fileLabel"
           ></div>
+          <button class="change-file-btn" id="changeFileBtn" type="button">
+            Choose a different file
+          </button>
         </div>
       </div>
 
@@ -597,6 +632,11 @@
       <!-- ── Teacher Answers ───────────────────────────────────────────────────── -->
       <div class="card">
         <div class="card-title">Reference Answers</div>
+        <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px">
+          Add one textarea per question on the sheet. The system maps detected
+          answer blocks to these in order, or by Q-labels (Q1, 1), Ans 1…) if
+          your student wrote them.
+        </p>
         <div id="answerBlocks">
           <div class="answer-block" data-idx="1">
             <div class="q-label">Question 1</div>
@@ -720,26 +760,60 @@
       const qs = (sel) => document.querySelector(sel);
 
       // ── File upload & preview ────────────────────────────────────────────────────
-      let uploadedFile = null;
+      let uploadedFile = null;       // original File object (for name/type)
+      let uploadedBytes = null;      // ArrayBuffer cached at upload time
+
+      function showUploaded(f) {
+        uploadedFile = f;
+        uploadedBytes = null;
+        // Cache the file bytes immediately so re-grading doesn't depend on the
+        // browser being able to re-read the original file from disk (which can
+        // fail with "Failed to fetch" if the underlying file is moved/modified).
+        f.arrayBuffer()
+          .then((buf) => { uploadedBytes = buf; })
+          .catch((err) => {
+            uploadedBytes = null;
+            showError("Could not read file: " + err.message);
+          });
+        const sizeKB = (f.size / 1024).toFixed(1);
+        const isPDF = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+
+        // Drop-zone in-place confirmation
+        dropZone.classList.add("has-file");
+        $("dropIcon").textContent = isPDF ? "📕" : "✅";
+        $("dropText").innerHTML =
+          '<strong>' + f.name + '</strong><br />' +
+          (isPDF ? 'PDF document' : 'Image') + ' · ready to grade';
+        $("fileMeta").textContent = sizeKB + " KB · click to replace";
+        $("fileMeta").style.display = "";
+
+        // Preview block
+        $("fileLabel").textContent =
+          f.name + "  (" + sizeKB + " KB" + (isPDF ? " · PDF" : "") + ")";
+        if (!isPDF && f.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            $("imgPreview").src = ev.target.result;
+            $("imgPreview").style.display = "";
+          };
+          reader.readAsDataURL(f);
+        } else {
+          $("imgPreview").src = "";
+          $("imgPreview").style.display = "none";
+        }
+        $("preview-wrap").style.display = "";
+        $("ablationBtn").style.display = "inline-flex";
+      }
 
       $("sheetInput").addEventListener("change", (e) => {
         const f = e.target.files[0];
         if (!f) return;
-        uploadedFile = f;
-        $("fileLabel").textContent =
-          f.name + "  (" + (f.size / 1024).toFixed(1) + " KB)";
-        if (f.type.startsWith("image/")) {
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            $("imgPreview").src = ev.target.result;
-          };
-          reader.readAsDataURL(f);
-          $("preview-wrap").style.display = "";
-        } else {
-          $("imgPreview").src = "";
-          $("preview-wrap").style.display = "none";
-        }
-        $("ablationBtn").style.display = "inline-flex";
+        showUploaded(f);
+      });
+
+      $("changeFileBtn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        $("sheetInput").click();
       });
 
       const dropZone = $("dropZone");
@@ -829,13 +903,29 @@
         $("resultsSection").style.display = "none";
         $("ablationCard").style.display = "none";
 
+        if (!uploadedBytes) {
+          showError("File is still loading — try again in a second, or re-upload.");
+          return;
+        }
+
+        // Build a fresh Blob from the cached bytes for every submit.
+        // Re-using the original File reference can fail on repeat submits
+        // (Chrome's "Failed to fetch") if the source file moved on disk.
+        const blob = new Blob([uploadedBytes], {
+          type: uploadedFile.type || "application/octet-stream",
+        });
+
         const fd = new FormData();
-        fd.append("sheet", uploadedFile);
+        fd.append("sheet", blob, uploadedFile.name);
         answers.forEach((a, i) => fd.append(`teacher_answer_${i + 1}`, a));
         fd.append("grading_mode", mode);
 
         try {
           const res = await fetch("/grade", { method: "POST", body: fd });
+          if (!res.ok) {
+            const txt = await res.text().catch(() => "");
+            throw new Error("HTTP " + res.status + " " + (txt || res.statusText));
+          }
           const data = await res.json();
           if (data.error) {
             showError(data.error);
@@ -843,7 +933,10 @@
           }
           renderResults(data);
         } catch (e) {
-          showError("Server error: " + e.message);
+          const hint = e.message && e.message.includes("Failed to fetch")
+            ? " — is the server still running at :5001?"
+            : "";
+          showError("Server error: " + e.message + hint);
         } finally {
           setLoading(false);
         }

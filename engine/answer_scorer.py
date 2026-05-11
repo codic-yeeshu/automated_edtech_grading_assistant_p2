@@ -18,6 +18,8 @@ Three grading modes for ablation study:
     BiLSTM adds structural answer quality signal.
 """
 
+from __future__ import annotations
+
 import re
 import enum
 import logging
